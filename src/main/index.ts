@@ -1,0 +1,163 @@
+import { app, BrowserWindow, ipcMain, shell, safeStorage, dialog } from 'electron'
+import { join } from 'path'
+import { readFileSync } from 'fs'
+import { SSHManager } from './ssh-manager'
+import { Store } from './store'
+import { AiService } from './ai-service'
+
+let mainWindow: BrowserWindow | null = null
+const sshManager = new SSHManager()
+const store = new Store()
+const aiService = new AiService()
+
+function createWindow(): void {
+  mainWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    minWidth: 900,
+    minHeight: 600,
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 15, y: 15 },
+    backgroundColor: '#1a1a2e',
+    vibrancy: 'sidebar',
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  })
+
+  mainWindow.on('ready-to-show', () => {
+    mainWindow?.show()
+  })
+
+  mainWindow.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url)
+    return { action: 'deny' }
+  })
+
+  if (process.env.ELECTRON_RENDERER_URL) {
+    mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
+  } else {
+    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+  }
+}
+
+// --- IPC: Store ---
+ipcMain.handle('store:getConnections', () => store.getConnections())
+ipcMain.handle('store:saveConnection', (_e, conn) => store.saveConnection(conn))
+ipcMain.handle('store:deleteConnection', (_e, id) => store.deleteConnection(id))
+ipcMain.handle('store:getSettings', () => store.getSettings())
+ipcMain.handle('store:saveSettings', (_e, settings) => store.saveSettings(settings))
+
+// --- IPC: SSH ---
+ipcMain.handle('ssh:connect', async (_e, connConfig) => {
+  try {
+    const sessionId = await sshManager.connect(connConfig)
+    return { success: true, sessionId }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+})
+
+ipcMain.handle('ssh:disconnect', (_e, sessionId: string) => {
+  sshManager.disconnect(sessionId)
+  return { success: true }
+})
+
+ipcMain.on('ssh:data', (_e, sessionId: string, data: string) => {
+  sshManager.write(sessionId, data)
+})
+
+ipcMain.on('ssh:resize', (_e, sessionId: string, cols: number, rows: number) => {
+  sshManager.resize(sessionId, cols, rows)
+})
+
+// Forward SSH data to renderer
+sshManager.on('data', (sessionId: string, data: string) => {
+  mainWindow?.webContents.send('ssh:data', sessionId, data)
+})
+
+sshManager.on('close', (sessionId: string) => {
+  mainWindow?.webContents.send('ssh:close', sessionId)
+})
+
+sshManager.on('error', (sessionId: string, error: string) => {
+  mainWindow?.webContents.send('ssh:error', sessionId, error)
+})
+
+// --- IPC: AI ---
+ipcMain.handle('ai:chat', async (_e, messages: any[], settings: any) => {
+  try {
+    const reply = await aiService.chat(messages, settings)
+    return { success: true, reply }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+})
+
+// --- IPC: SSH Exec ---
+ipcMain.handle('ssh:exec', async (_e, sessionId: string, command: string) => {
+  try {
+    const output = await sshManager.exec(sessionId, command)
+    return { success: true, output }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+})
+
+// --- IPC: Encryption ---
+ipcMain.handle('encrypt', (_e, text: string) => {
+  if (safeStorage.isEncryptionAvailable()) {
+    return safeStorage.encryptString(text).toString('base64')
+  }
+  return text
+})
+
+ipcMain.handle('decrypt', (_e, encrypted: string) => {
+  if (safeStorage.isEncryptionAvailable()) {
+    return safeStorage.decryptString(Buffer.from(encrypted, 'base64'))
+  }
+  return encrypted
+})
+
+// --- IPC: File Dialog ---
+ipcMain.handle('dialog:openFile', async (_e, options: any) => {
+  if (!mainWindow) return { canceled: true, filePaths: [] }
+  const result = await dialog.showOpenDialog(mainWindow, options)
+  return result
+})
+
+// --- IPC: Read file as data URL ---
+ipcMain.handle('file:readAsDataUrl', async (_e, filePath: string) => {
+  try {
+    const data = readFileSync(filePath)
+    const ext = filePath.split('.').pop()?.toLowerCase() || 'png'
+    const mimeMap: Record<string, string> = {
+      png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+      gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', svg: 'image/svg+xml'
+    }
+    const mime = mimeMap[ext] || 'image/png'
+    return `data:${mime};base64,${data.toString('base64')}`
+  } catch {
+    return null
+  }
+})
+
+app.whenReady().then(() => {
+  createWindow()
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow()
+    }
+  })
+})
+
+app.on('window-all-closed', () => {
+  sshManager.disconnectAll()
+  if (process.platform !== 'darwin') {
+    app.quit()
+  }
+})

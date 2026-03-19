@@ -1,0 +1,43 @@
+{
+  "name": "openterm",
+  "version": "1.0.0",
+  "description": "AI-Driven SSH Connection Manager",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "electron-store": "^10.0.1",
+    "ssh2": "^1.16.0",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@electron-toolkit/preload": "^3.0.2",
+    "@electron-toolkit/utils": "^4.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@types/ssh2": "^1.15.0",
+    "@types/uuid": "^10.0.0",
+    "@vitejs/plugin-react": "^4.5.0",
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.0",
+    "electron-vite": "^3.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.8.0",
+    "vite": "^6.0.0",
+    "@xterm/xterm": "^5.5.0",
+    "@xterm/addon-fit": "^0.10.0"
+  },
+  "build": {
+    "appId": "com.openterm.app",
+    "productName": "OpenTerm",
+    "mac": {
+      "target": "dmg",
+      "icon": "resources/icon.icns"
+    }
+  }
+}
