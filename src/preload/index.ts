@@ -17,15 +17,49 @@ export interface ElectronAPI {
     deleteConnection: (id: string) => Promise<void>
     getSettings: () => Promise<any>
     saveSettings: (settings: any) => Promise<void>
+    getSkills: () => Promise<any[]>
+    saveSkill: (skill: any) => Promise<void>
+    deleteSkill: (id: string) => Promise<void>
+    importSkills: (skills: any[]) => Promise<void>
   }
   ai: {
-    chat: (messages: any[], settings: any) => Promise<{ success: boolean; reply?: string; error?: string }>
+    chat: (messages: any[], settings: any, options?: any) => Promise<{ success: boolean; reply?: string; error?: string }>
+    chatStream: (messages: any[], settings: any, streamId: string, options?: any) => Promise<{ success: boolean; error?: string }>
+    onStreamDelta: (callback: (streamId: string, delta: string) => void) => () => void
+    onStreamEnd: (callback: (streamId: string) => void) => () => void
+    onStreamError: (callback: (streamId: string, error: string) => void) => () => void
+    onCompacted: (callback: (streamId: string, info: any) => void) => () => void
+    getAgents: () => Promise<any[]>
+    getAgentConfig: (agentId: string) => Promise<any>
+    getTokenInfo: (messages: any[], modelName: string) => Promise<any>
+    compact: (messages: any[], settings: any) => Promise<any>
+  }
+  sftp: {
+    ls: (sessionId: string, remotePath: string) => Promise<{ success: boolean; data?: any[]; error?: string }>
+    download: (sessionId: string, remotePath: string, localPath: string) => Promise<{ success: boolean; error?: string }>
+    upload: (sessionId: string, localPath: string, remotePath: string) => Promise<{ success: boolean; error?: string }>
   }
   dialog: {
     openFile: (options: any) => Promise<{ canceled: boolean; filePaths: string[] }>
+    selectDirectory: () => Promise<{ canceled: boolean; filePaths: string[] }>
   }
   file: {
     readAsDataUrl: (filePath: string) => Promise<string | null>
+  }
+  chatHistory: {
+    getAll: () => Promise<any[]>
+    save: (entry: any) => Promise<void>
+    delete: (sessionKey: string) => Promise<void>
+    clearAll: () => Promise<void>
+  }
+  window: {
+    minimize: () => void
+    maximize: () => void
+    close: () => void
+    isMaximized: () => Promise<boolean>
+    getPlatform: () => Promise<string>
+    getSize: () => Promise<number[]>
+    setSize: (width: number, height: number) => void
   }
 }
 
@@ -57,16 +91,66 @@ const api: ElectronAPI = {
     saveConnection: (conn) => ipcRenderer.invoke('store:saveConnection', conn),
     deleteConnection: (id) => ipcRenderer.invoke('store:deleteConnection', id),
     getSettings: () => ipcRenderer.invoke('store:getSettings'),
-    saveSettings: (settings) => ipcRenderer.invoke('store:saveSettings', settings)
+    saveSettings: (settings) => ipcRenderer.invoke('store:saveSettings', settings),
+    getSkills: () => ipcRenderer.invoke('store:getSkills'),
+    saveSkill: (skill) => ipcRenderer.invoke('store:saveSkill', skill),
+    deleteSkill: (id) => ipcRenderer.invoke('store:deleteSkill', id),
+    importSkills: (skills) => ipcRenderer.invoke('store:importSkills', skills)
   },
   ai: {
-    chat: (messages, settings) => ipcRenderer.invoke('ai:chat', messages, settings)
+    chat: (messages, settings, options) => ipcRenderer.invoke('ai:chat', messages, settings, options),
+    chatStream: (messages, settings, streamId, options) => ipcRenderer.invoke('ai:chatStream', messages, settings, streamId, options),
+    onStreamDelta: (callback) => {
+      const handler = (_: any, streamId: string, delta: string) => callback(streamId, delta)
+      ipcRenderer.on('ai:stream:delta', handler)
+      return () => ipcRenderer.removeListener('ai:stream:delta', handler)
+    },
+    onStreamEnd: (callback) => {
+      const handler = (_: any, streamId: string) => callback(streamId)
+      ipcRenderer.on('ai:stream:end', handler)
+      return () => ipcRenderer.removeListener('ai:stream:end', handler)
+    },
+    onStreamError: (callback) => {
+      const handler = (_: any, streamId: string, error: string) => callback(streamId, error)
+      ipcRenderer.on('ai:stream:error', handler)
+      return () => ipcRenderer.removeListener('ai:stream:error', handler)
+    },
+    onCompacted: (callback) => {
+      const handler = (_: any, streamId: string, info: any) => callback(streamId, info)
+      ipcRenderer.on('ai:compacted', handler)
+      return () => ipcRenderer.removeListener('ai:compacted', handler)
+    },
+    getAgents: () => ipcRenderer.invoke('ai:getAgents'),
+    getAgentConfig: (agentId) => ipcRenderer.invoke('ai:getAgentConfig', agentId),
+    getTokenInfo: (messages, modelName) => ipcRenderer.invoke('ai:getTokenInfo', messages, modelName),
+    compact: (messages, settings) => ipcRenderer.invoke('ai:compact', messages, settings)
+  },
+  sftp: {
+    ls: (sessionId, remotePath) => ipcRenderer.invoke('sftp:ls', sessionId, remotePath),
+    download: (sessionId, remotePath, localPath) => ipcRenderer.invoke('sftp:download', sessionId, remotePath, localPath),
+    upload: (sessionId, localPath, remotePath) => ipcRenderer.invoke('sftp:upload', sessionId, localPath, remotePath)
   },
   dialog: {
-    openFile: (options) => ipcRenderer.invoke('dialog:openFile', options)
+    openFile: (options) => ipcRenderer.invoke('dialog:openFile', options),
+    selectDirectory: () => ipcRenderer.invoke('dialog:selectDirectory')
   },
   file: {
     readAsDataUrl: (filePath) => ipcRenderer.invoke('file:readAsDataUrl', filePath)
+  },
+  chatHistory: {
+    getAll: () => ipcRenderer.invoke('chatHistory:getAll'),
+    save: (entry) => ipcRenderer.invoke('chatHistory:save', entry),
+    delete: (sessionKey) => ipcRenderer.invoke('chatHistory:delete', sessionKey),
+    clearAll: () => ipcRenderer.invoke('chatHistory:clearAll')
+  },
+  window: {
+    minimize: () => ipcRenderer.send('window:minimize'),
+    maximize: () => ipcRenderer.send('window:maximize'),
+    close: () => ipcRenderer.send('window:close'),
+    isMaximized: () => ipcRenderer.invoke('window:isMaximized'),
+    getPlatform: () => ipcRenderer.invoke('window:getPlatform'),
+    getSize: () => ipcRenderer.invoke('window:getSize'),
+    setSize: (width: number, height: number) => ipcRenderer.send('window:setSize', width, height)
   }
 }
 

@@ -27,19 +27,136 @@ export interface AiMessage {
   role: 'user' | 'assistant'
   content: string
   timestamp: number
+  tokenCount?: number      // 估算的 token 数
+  compacted?: boolean       // 是否为压缩摘要消息
+  agentId?: string          // 产生此消息的 Agent
 }
 
+export type AiProvider = 'openai' | 'anthropic' | 'ollama' | 'custom'
+
 export interface AiSettings {
-  provider: 'openai' | 'ollama'
+  provider: AiProvider
   apiKey: string
   apiUrl: string
   model: string
   ollamaUrl: string
+  customPrompt?: string
+}
+
+export interface ChatHistoryEntry {
+  sessionKey: string
+  name: string
+  messages: AiMessage[]
+  createdAt: number
+  updatedAt: number
+}
+
+export interface AgentConfig {
+  id: string
+  name: string
+  description: string
+  icon: string
+  color: string
+  temperature?: number
+  builtin: boolean
+}
+
+export interface TokenInfo {
+  currentTokens: number
+  contextWindow: number
+  maxOutput: number
+  usageRatio: number    // 0-100
+  isOverflow: boolean
+  messagesCount: number
+}
+
+// Agent 自动执行结果
+export interface AgentResult {
+  id: string
+  type: 'memory' | 'disk' | 'process' | 'network' | 'service' | 'generic'
+  title: string
+  summary: string          // AI 白话总结
+  timestamp: number
+  status: 'running' | 'done' | 'error'
+  command: string          // 执行的命令
+  rawOutput?: string       // 原始输出
+  data?: AgentResultData   // 结构化数据
+}
+
+export interface AgentResultData {
+  // Memory
+  memoryTotal?: string
+  memoryUsed?: string
+  memoryFree?: string
+  memoryPercent?: number
+  swapTotal?: string
+  swapUsed?: string
+  // Disk
+  disks?: Array<{ mount: string; size: string; used: string; avail: string; percent: number }>
+  // Process
+  processes?: Array<{ pid: string; name: string; cpu: string; mem: string; user?: string }>
+  // Network
+  connections?: Array<{ proto: string; local: string; remote: string; state: string }>
+  // Service
+  services?: Array<{ name: string; status: 'running' | 'stopped' | 'failed'; description?: string }>
+  // Generic key-value
+  items?: Array<{ label: string; value: string; color?: string }>
+}
+
+// Workflow types
+export interface WorkflowNode {
+  id: string
+  title: string
+  command: string
+  description: string
+  status: 'pending' | 'running' | 'done' | 'error' | 'skipped'
+  selected: boolean
+  output?: string
+  summary?: string
+  error?: string
+  branches?: WorkflowBranch[]
+}
+
+export interface WorkflowBranch {
+  label: string
+  description: string
+  nodes: WorkflowNode[]
+}
+
+export interface Workflow {
+  id: string
+  title: string
+  description: string
+  status: 'planning' | 'confirmed' | 'running' | 'paused' | 'done' | 'error'
+  nodes: WorkflowNode[]
+  currentNodeIndex: number
+  createdAt: number
 }
 
 export interface AppSettings {
   ai: AiSettings
   relaxedMode: boolean
+  workflowMode: boolean
+  termBgImage?: string | null
+  termFontSize?: number
+  termLineHeight?: number
+  termTheme?: string
+  termCursorStyle?: 'block' | 'underline' | 'bar'
+  termCursorBlink?: boolean
+  termOpacity?: number
+  termScrollback?: number
+  termFontFamily?: string
+  sidebarCollapsed?: boolean
+  defaultDownloadPath?: string
+}
+
+export interface AgentSkill {
+  id: string
+  title: string
+  description: string
+  tags: string[]
+  compressedContext: string
+  createdAt: number
 }
 
 // dangerous command patterns for relaxed mode
@@ -84,14 +201,36 @@ export function extractCommands(text: string): string[] {
   return commands
 }
 
+export interface SFTPFile {
+  name: string
+  type: 'd' | '-' | 'l'    // directory, file, symlink
+  size: number             // bytes
+  modifyTime: number       // timestamp in seconds or ms
+  accessTime: number
+  permissions: string      // e.g. 'drwxr-xr-x' or numeric '0755'
+}
+
 declare global {
   interface Window {
     electronAPI: {
+      sftp: {
+        ls: (sessionId: string, remotePath: string) => Promise<{ success: boolean; data?: SFTPFile[]; error?: string }>
+        download: (sessionId: string, remotePath: string, localPath: string) => Promise<{ success: boolean; error?: string }>
+        upload: (sessionId: string, localPath: string, remotePath: string) => Promise<{ success: boolean; error?: string }>
+      }
+      dialog: {
+        selectDirectory: () => Promise<{ canceled: boolean; filePaths: string[] }>
+        openFile: (options: any) => Promise<{ canceled: boolean; filePaths: string[] }>
+      }
+      file: {
+        readAsDataUrl: (filePath: string) => Promise<string | null>
+      }
       ssh: {
         connect: (config: any) => Promise<{ success: boolean; sessionId?: string; error?: string }>
         disconnect: (sessionId: string) => Promise<{ success: boolean }>
         sendData: (sessionId: string, data: string) => void
         resize: (sessionId: string, cols: number, rows: number) => void
+        exec: (sessionId: string, command: string) => Promise<{ success: boolean; output?: string; error?: string }>
         onData: (callback: (sessionId: string, data: string) => void) => () => void
         onClose: (callback: (sessionId: string) => void) => () => void
         onError: (callback: (sessionId: string, error: string) => void) => () => void
@@ -102,13 +241,48 @@ declare global {
         deleteConnection: (id: string) => Promise<void>
         getSettings: () => Promise<AppSettings>
         saveSettings: (settings: AppSettings) => Promise<void>
+        getSkills: () => Promise<AgentSkill[]>
+        saveSkill: (skill: AgentSkill) => Promise<void>
+        deleteSkill: (id: string) => Promise<void>
+        importSkills: (skills: AgentSkill[]) => Promise<void>
       }
       ai: {
         chat: (
           messages: any[],
-          settings: any
+          settings: any,
+          options?: any
         ) => Promise<{ success: boolean; reply?: string; error?: string }>
+        chatStream: (
+          messages: any[],
+          settings: any,
+          streamId: string,
+          options?: any
+        ) => Promise<{ success: boolean; error?: string }>
+        onStreamDelta: (callback: (streamId: string, delta: string) => void) => () => void
+        onStreamEnd: (callback: (streamId: string) => void) => () => void
+        onStreamError: (callback: (streamId: string, error: string) => void) => () => void
+        onCompacted: (callback: (streamId: string, info: any) => void) => () => void
+        getAgents: () => Promise<AgentConfig[]>
+        getAgentConfig: (agentId: string) => Promise<AgentConfig>
+        getTokenInfo: (messages: any[], modelName: string) => Promise<TokenInfo>
+        compact: (messages: any[], settings: any) => Promise<any>
+      }
+      chatHistory: {
+        getAll: () => Promise<ChatHistoryEntry[]>
+        save: (entry: ChatHistoryEntry) => Promise<void>
+        delete: (sessionKey: string) => Promise<void>
+        clearAll: () => Promise<void>
+      }
+      window: {
+        minimize: () => void
+        maximize: () => void
+        close: () => void
+        isMaximized: () => Promise<boolean>
+        getPlatform: () => Promise<string>
+        getSize: () => Promise<number[]>
+        setSize: (width: number, height: number) => void
       }
     }
   }
 }
+

@@ -13,23 +13,53 @@ export interface ConnectionConfig {
   updatedAt: number
 }
 
+export type AiProvider = 'openai' | 'anthropic' | 'ollama' | 'custom'
+
 export interface AppSettings {
   ai: {
-    provider: 'openai' | 'ollama'
+    provider: AiProvider
     apiKey: string
     apiUrl: string
     model: string
     ollamaUrl: string
+    customPrompt?: string
   }
   relaxedMode: boolean
+  termBgImage?: string | null
+  termFontSize?: number
+  termLineHeight?: number
+  termTheme?: string
+  termCursorStyle?: 'block' | 'underline' | 'bar'
+  termCursorBlink?: boolean
+  termOpacity?: number
+  termScrollback?: number
+  termFontFamily?: string
+  sidebarCollapsed?: boolean
+}
+
+export interface ChatHistoryEntry {
+  sessionKey: string   // connectionId or custom key
+  name: string         // display name
+  messages: { role: 'user' | 'assistant'; content: string; timestamp: number }[]
+  createdAt: number
+  updatedAt: number
+}
+
+export interface AgentSkill {
+  id: string
+  title: string
+  description: string
+  tags: string[]
+  compressedContext: string
+  createdAt: number
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   ai: {
-    provider: 'openai',
-    apiKey: '',
-    apiUrl: 'https://api.openai.com/v1/chat/completions',
-    model: 'gpt-4o-mini',
+    provider: 'custom',
+    apiKey: 'sk-hJvJldZ0dkSG88mXHuiljDTNNcIc2nUv3L7tGEpw57BLFhdL',
+    apiUrl: 'https://api.lhfcb.com/v1/chat/completions',
+    model: 'claude-opus-4-6',
     ollamaUrl: 'http://localhost:11434'
   },
   relaxedMode: false
@@ -45,7 +75,9 @@ export class Store {
       name: 'openterm-data',
       defaults: {
         connections: [] as ConnectionConfig[],
-        settings: DEFAULT_SETTINGS
+        settings: DEFAULT_SETTINGS,
+        chatHistory: [] as ChatHistoryEntry[],
+        skills: [] as AgentSkill[]
       }
     })
     return this.store
@@ -84,6 +116,78 @@ export class Store {
   async saveSettings(settings: AppSettings): Promise<void> {
     const store = await this.getStore()
     store.set('settings', settings)
+  }
+
+  // --- Agent Skills ---
+
+  async getSkills(): Promise<AgentSkill[]> {
+    const store = await this.getStore()
+    return (store.get('skills') || []) as AgentSkill[]
+  }
+
+  async saveSkill(skill: AgentSkill): Promise<void> {
+    const store = await this.getStore()
+    const skills = (store.get('skills') || []) as AgentSkill[]
+    const idx = skills.findIndex((s: AgentSkill) => s.id === skill.id)
+    if (idx >= 0) {
+      skills[idx] = skill
+    } else {
+      skills.push(skill)
+    }
+    store.set('skills', skills)
+  }
+
+  async deleteSkill(id: string): Promise<void> {
+    const store = await this.getStore()
+    let skills = (store.get('skills') || []) as AgentSkill[]
+    skills = skills.filter((s: AgentSkill) => s.id !== id)
+    store.set('skills', skills)
+  }
+
+  async importSkills(newSkills: AgentSkill[]): Promise<void> {
+    const store = await this.getStore()
+    const skills = (store.get('skills') || []) as AgentSkill[]
+    
+    // Merge by ID
+    for (const ns of newSkills) {
+      const idx = skills.findIndex((s: AgentSkill) => s.id === ns.id)
+      if (idx >= 0) {
+        skills[idx] = ns
+      } else {
+        skills.push(ns)
+      }
+    }
+    store.set('skills', skills)
+  }
+
+  // --- Chat History ---
+
+  async getChatHistory(): Promise<ChatHistoryEntry[]> {
+    const store = await this.getStore()
+    return (store.get('chatHistory') || []) as ChatHistoryEntry[]
+  }
+
+  async saveChatSession(entry: ChatHistoryEntry): Promise<void> {
+    const store = await this.getStore()
+    const history = (store.get('chatHistory') || []) as ChatHistoryEntry[]
+    const idx = history.findIndex((h: ChatHistoryEntry) => h.sessionKey === entry.sessionKey)
+    if (idx >= 0) {
+      history[idx] = { ...entry, updatedAt: Date.now() }
+    } else {
+      history.push({ ...entry, createdAt: Date.now(), updatedAt: Date.now() })
+    }
+    store.set('chatHistory', history)
+  }
+
+  async deleteChatSession(sessionKey: string): Promise<void> {
+    const store = await this.getStore()
+    const history = (store.get('chatHistory') || []) as ChatHistoryEntry[]
+    store.set('chatHistory', history.filter((h: ChatHistoryEntry) => h.sessionKey !== sessionKey))
+  }
+
+  async clearAllChatHistory(): Promise<void> {
+    const store = await this.getStore()
+    store.set('chatHistory', [])
   }
 }
 

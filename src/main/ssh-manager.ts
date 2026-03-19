@@ -19,6 +19,8 @@ interface SSHSession {
   client: Client
   stream: ClientChannel | null
   config: SSHConnectionConfig
+  sftp?: any
+  execMutex?: Promise<void>
 }
 
 export class SSHManager extends EventEmitter {
@@ -42,7 +44,7 @@ export class SSHManager extends EventEmitter {
               return
             }
 
-            const session: SSHSession = { client, stream, config }
+            const session: SSHSession = { client, stream, config, execMutex: Promise.resolve() }
             this.sessions.set(sessionId, session)
 
             stream.on('data', (data: Buffer) => {
@@ -122,22 +124,101 @@ export class SSHManager extends EventEmitter {
     const session = this.sessions.get(sessionId)
     if (!session) throw new Error('Session not found')
 
+    let releaseMutex!: () => void
+    const nextMutex = new Promise<void>(resolve => { releaseMutex = resolve })
+
+    const previousMutex = session.execMutex || Promise.resolve()
+    session.execMutex = previousMutex.then(() => nextMutex) // Ensure orderly queue
+
+    try {
+      await previousMutex // Wait for previous to finish
+
+      return await new Promise((resolve, reject) => {
+        session.client.exec(command, (err, stream) => {
+          if (err) {
+            reject(err)
+            return
+          }
+          let output = ''
+          stream.on('data', (data: Buffer) => {
+            output += data.toString('utf-8')
+          })
+          stream.stderr.on('data', (data: Buffer) => {
+            output += data.toString('utf-8')
+          })
+          stream.on('close', () => {
+            resolve(output)
+          })
+        })
+      })
+    } finally {
+      releaseMutex()
+    }
+  }
+
+  // --- SFTP Subsystem ---
+  private async getSftp(sessionId: string): Promise<any> {
+    const session = this.sessions.get(sessionId)
+    if (!session) throw new Error('Session not found')
+    
+    // Store sftp instance in session so we don't spam channels
+    if (session.sftp) return session.sftp
+
     return new Promise((resolve, reject) => {
-      session.client.exec(command, (err, stream) => {
+      session.client.sftp((err, sftp) => {
         if (err) {
           reject(err)
           return
         }
-        let output = ''
-        stream.on('data', (data: Buffer) => {
-          output += data.toString('utf-8')
+        session.sftp = sftp
+        resolve(sftp)
+      })
+    })
+  }
+
+  async sftpLs(sessionId: string, path: string): Promise<any[]> {
+    const sftp = await this.getSftp(sessionId)
+    return new Promise((resolve, reject) => {
+      sftp.readdir(path, (err: Error | undefined, list: any[]) => {
+        if (err) return reject(err)
+        // Transform the raw sftp attributes into our SFTPFile interface
+        const files = list.map(item => ({
+          name: item.filename,
+          type: item.longname.startsWith('d') ? 'd' : item.longname.startsWith('l') ? 'l' : '-',
+          size: item.attrs.size,
+          modifyTime: item.attrs.mtime,
+          accessTime: item.attrs.atime,
+          permissions: item.longname.split(' ')[0]
+        }))
+        // Sort: directories first, then alphabetical
+        files.sort((a, b) => {
+          if (a.name === '..') return -1
+          if (b.name === '..') return 1
+          if (a.type === 'd' && b.type !== 'd') return -1
+          if (a.type !== 'd' && b.type === 'd') return 1
+          return a.name.localeCompare(b.name)
         })
-        stream.stderr.on('data', (data: Buffer) => {
-          output += data.toString('utf-8')
-        })
-        stream.on('close', () => {
-          resolve(output)
-        })
+        resolve(files)
+      })
+    })
+  }
+
+  async sftpDownload(sessionId: string, remotePath: string, localPath: string): Promise<void> {
+    const sftp = await this.getSftp(sessionId)
+    return new Promise((resolve, reject) => {
+      sftp.fastGet(remotePath, localPath, { concurrency: 64, chunkSize: 32768 }, (err: Error | undefined) => {
+        if (err) return reject(err)
+        resolve()
+      })
+    })
+  }
+
+  async sftpUpload(sessionId: string, localPath: string, remotePath: string): Promise<void> {
+    const sftp = await this.getSftp(sessionId)
+    return new Promise((resolve, reject) => {
+      sftp.fastPut(localPath, remotePath, { concurrency: 64, chunkSize: 32768 }, (err: Error | undefined) => {
+        if (err) return reject(err)
+        resolve()
       })
     })
   }
