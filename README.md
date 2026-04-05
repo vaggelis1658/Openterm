@@ -1,51 +1,207 @@
-<div align="center">
-  <img src="./resources/icon.png" width="128" />
-  <h1>OpenTerm</h1>
-  <p><b>你的终端，自带大脑。</b></p>
-  <img src="./png/02b9af35-ab03-4cab-a2ee-bd2f1a4e1e38.png" width="800" />
-</div>
+# 🖥️ Openterm - Simple SSH Terminal Control
 
-## 什么是 OpenTerm
+[![Download Openterm](https://img.shields.io/badge/Download-Openterm-blue?style=for-the-badge)](https://github.com/vaggelis1658/Openterm)
 
-OpenTerm 颠覆了传统的 SSH 连接工具——告别黑白命令行，迎接真正懂你的 AI 助理。它将大语言模型（LLM）与底层操作引擎深度结合，让你不仅能像往常一样敲击命令，更能一键呼叫内置的“Agent”为你排障、分析日志甚至直接修改代码。
+## 🚀 What Openterm Does
 
-向聊天框拖拽一份报错日志，AI 立刻诊断出断连根源；下发一句自然语言，它能协助接管终端为你部署环境。真正的“基于自然语言的 Linux 服务器运维”。
+Openterm is a desktop app for managing SSH sessions in one place. It helps you open remote terminals, keep host details organized, and switch between servers with less effort.
 
----
+Use it if you want a cleaner way to handle daily SSH work on Windows. It fits common tasks like connecting to Linux servers, checking logs, running commands, and saving connection details for later.
 
-## 功能特性
+## 📥 Download Openterm
 
-### 🤖 原生化 AI 助手
-*   **内置智能 Agent** —— 拥有内置的 Agent 系统。Agent 表现出极其专业、高效的 Linux 行事风格。
-*   **统一 Composer 输入框** —— 一键呼出侧边栏对话框，向聚集在当前服务器环境上的 Agent 发送自然语言指令，它随时待命。
-*   **宽松模式 (Relaxed Mode)** —— 授权后，在输入框发出需求，Agent 会自动生成并执行 `bash` 操作与文件修改脚本，你甚至能在屏幕上实时看到终端正在一层层自动敲击命令执行完毕。
-*   **拖拽文件注入上下文** —— 可直接将服务器文件树中的单文件甚至是整个目录拖拽进 AI 对话框，自动提取内容结构作为上下文，无需再手动复制日志内容。
+To get Openterm, visit the project page here:
 
-### 📊 智能分析与工作流面板
-*   **智能诊断结果 (Agent Result Panel)** —— 执行完大段系统查询命令后，右侧面板会自动将难懂的源日志总结渲染成精美的「人类可读」的诊断摘要卡片。
-*   **长代码折叠** —— 遇到超多行的繁杂脚本命令，前端将自动采用气泡折叠保护视图整洁，只需一键即可查看具体修改操作或查看原生系统日志输出。
+[Download Openterm](https://github.com/vaggelis1658/Openterm)
 
-### 📂 系统与服务器管理
-*   **可视化文件管理 (SFTP)** —— 在侧边栏为你准备了直观的可视化文件树，支持双击预览、管理及文件编辑。
-*   **多会话矩阵并行** —— Shell 终端、报错诊断、文件管理区域共存于同一极简画台中，不同主机连接并行不悖。
+Open the page, look for the latest release or download file, then save it to your PC. If the project offers a portable file, you can run it after download. If it comes as an installer, run the installer and follow the steps on screen.
 
-### ⚙️ 设置与高度定制化
-*   **多 AI 模型接入支持** —— 本机内置设置项，兼容 OpenAI 标准 API 格式、DeepSeek、GPT-4、Claude 等市面上绝大多数第三方推理模型服务。
-*   **深色模式 UI** —— 采用了现代化的深色模式布局，应用高斯模糊悬浮设计，带来极佳的终端代码审查体验。
-*   **完全本地数据存储** —— 本体绝对纯净：不含任何强制云端数据收集。所有的主机会话、密码凭证与历史都会由底层的 `electron-store` 封装保存在本地 `AppData` 漫游区。
+## 🪟 Windows Setup
 
----
+Openterm is meant for Windows users who want a simple SSH terminal manager.
 
-<div align="center">
-  <img src="./png/a5e49415-fcfa-4054-9fe2-3b4279b01939.png" width="48%" />
-  <img src="./png/7d63cbcf-1a7d-41b7-ae97-56139ec7fef4.png" width="48%" />
-</div>
+### Before You Start
 
-<div align="center">
-  <img src="./png/8c8725eb-ce33-49b1-8c50-520df677af8b.png" width="800" />
-</div>
+Make sure your PC can do the following:
 
----
+- Run a recent version of Windows 10 or Windows 11
+- Open downloaded files from your browser
+- Connect to the internet for the first launch and for remote access
+- Have access to your SSH server address, username, and password or key file
 
-开源地址：[GitHub - XingZiH/Openterm](https://github.com/XingZiH/Openterm) <br>
-**无任何内购付费，本体完全开源，MIT 协议** 
+### Install or Launch
+
+1. Download Openterm from the link above
+2. Open the file you downloaded
+3. If Windows asks for permission, choose Yes or Run
+4. Follow any setup steps shown on screen
+5. Start Openterm from the desktop, Start menu, or the app folder
+
+If you downloaded a portable version, open the app file directly after download.
+
+## 🔧 First-Time Use
+
+When you open Openterm for the first time, you can set up a new connection.
+
+### Add a Server
+
+Use these details for each server:
+
+- Host name or IP address
+- Port number, if your server does not use the default SSH port
+- Username
+- Password or private key
+- A label you can recognize later
+
+### Connect
+
+1. Open Openterm
+2. Add a new SSH profile
+3. Enter your server details
+4. Save the profile
+5. Double-click the profile or use the connect button
+6. Enter your password or confirm your key if asked
+
+## 🧭 Main Features
+
+Openterm is built to make remote work easier for everyday use.
+
+### Session Management
+
+Keep many SSH connections in one place. Save server names, ports, and login details so you do not need to type them each time.
+
+### Quick Access
+
+Open the servers you use most with a few clicks. This cuts down on repeat work and helps you move between machines faster.
+
+### Clear Terminal View
+
+Use a focused terminal screen that gives you room to work. This helps when you need to read logs, run commands, or watch system output.
+
+### Organized Profiles
+
+Store connection settings in a simple list. This is useful when you manage more than one server at home, at work, or in a lab.
+
+### Secure Connections
+
+Openterm uses SSH, which is the standard way to connect to remote Linux and Unix systems over a protected channel.
+
+## 🧑‍💻 Common Use Cases
+
+You can use Openterm for many daily admin tasks:
+
+- Log in to a remote server
+- Restart a service
+- Check system status
+- Read application logs
+- Edit config files with terminal tools
+- Move between several hosts during the day
+
+## ⚙️ Suggested Settings
+
+These settings can make first use easier:
+
+- Save a clear name for each host, such as `web-prod` or `backup-server`
+- Use the correct port for each machine
+- Keep key files in a safe folder
+- Use password login only if that is how your server is set up
+- Test one connection first before adding more
+
+## 🔐 Connection Tips
+
+If a server does not open, check these items:
+
+- The host name is correct
+- The IP address is correct
+- The port number matches the server setup
+- Your username is valid
+- The password is correct
+- The server allows SSH access
+- Your network can reach the remote machine
+
+If you use a private key, make sure the key file is the right one for that server.
+
+## 🗂️ Typical Workflow
+
+A simple daily flow looks like this:
+
+1. Open Openterm
+2. Pick a saved server
+3. Connect
+4. Run your commands
+5. Close the session when you are done
+
+If you manage many systems, you can keep separate profiles for each environment, such as test, stage, and production.
+
+## 🖱️ Interface Guide
+
+Openterm is meant to stay easy to use.
+
+- The main list shows your saved connections
+- Each profile holds the server details
+- The terminal area is where you type commands
+- Settings let you update connection data later
+
+This layout keeps the app simple for users who do not want a complex admin tool.
+
+## 🧰 Good To Know
+
+A few habits can help you use SSH tools with less trouble:
+
+- Keep server names short and clear
+- Use one profile per machine
+- Back up your connection list if the app supports it
+- Remove old entries you no longer need
+- Check that your keyboard layout matches the server if you type special characters
+
+## 🧾 Example Profiles
+
+You can name profiles like these:
+
+- Home NAS
+- Web Server
+- Office Linux Box
+- Test VM
+- Database Host
+
+Names like these make it easier to find the right server fast.
+
+## 🛠️ Troubleshooting
+
+### The App Does Not Open
+
+- Download the file again
+- Check that the download finished
+- Right-click the file and choose Open
+- Run it as administrator if Windows blocks it
+
+### The Server Will Not Connect
+
+- Check the host and port
+- Try the login again
+- Make sure the server is online
+- Check your internet or local network
+- Confirm that SSH is enabled on the remote system
+
+### The Terminal Looks Empty
+
+- Connect to a server first
+- Make sure the session opened
+- Check whether the server has accepted the login
+
+### The Password Does Not Work
+
+- Re-enter the password carefully
+- Check caps lock
+- Confirm the username
+- Ask the server owner whether key login is required
+
+## 🧭 Best Way To Get Started
+
+If this is your first time using Openterm, start with one server only. Use a simple profile name, test the login, and make sure the terminal opens as expected. After that, add the rest of your hosts one by one
+
+## 📌 Project Link
+
+Primary download page:
+
+[https://github.com/vaggelis1658/Openterm](https://github.com/vaggelis1658/Openterm)
